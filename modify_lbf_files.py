@@ -1,20 +1,22 @@
 #!python
 
+import glob
 import os
 import numpy as np
 from netCDF4 import Dataset
 
-path = 'location_of_input_files_(lbff*)_excluded_the_laf'
+path = '/media/pick/Data/int2lm/'
 
-files = [ fic for fic in os.listdir(path)]
+files = glob.glob(path + "*.nc")
+print(files)
 files.sort()
 
-nc_dcep = Dataset('location_of_laf_file','r')
+nc_dcep = Dataset('/media/pick/Data/int2lm/init/laf2015062200.nc','r')
 FR_URBANCL = nc_dcep.variables['FR_UCLASS'][:]
 
 for fic in files:
-    obj = path + fic
-    f = Dataset(obj, 'a', format='NETCDF4')
+    print("Working on {}".format(fic))
+    f = Dataset(fic, 'a', format='NETCDF4')
     lai = f.variables['LAI'][:]
     plcov = f.variables['PLCOV'][:]
     # Creating new variables
@@ -37,9 +39,9 @@ for fic in files:
     plcov_2.long_name = 'Plant coverage for urban vegetation'
     plcov_2.coordinates = 'lon lat'
     plcov_2.grid_mapping = 'rotated_pole'
-    # Closing netCDF
+        # Closing netCDF
     f.close()
 
 nc_dcep.close()
 
-print 'lbff files modified'
+print ('lbff files modified')

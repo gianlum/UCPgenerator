@@ -18,11 +18,11 @@ import angle
 import geo2rot
 
 #Flags
-LAD_flag = 1 # calculate LAD
+LAD_flag = 0# calculate LAD
 
 # Opening the netCDF datasets
-nc = Dataset('/project/mugi/nas/PAPER1/simulations/int2lm/1km/laf2015062200.nc','a')
-nc_lu = Dataset('/project/mugi/nas/DATA/WGS84/Land_Use/Soil_Sealing_EEA/mosaic_250m_sealing_v2_test_WGS84_domain.nc','r')
+nc = Dataset('/media/pick/Data/DCEP/laf2015062200.nc','a')
+nc_lu = Dataset('/media/pick/Data/DCEP/basel_reproject.nc','r')
 
 # Importing dimensions
 rlon_d = len(nc.dimensions['rlon'])
@@ -79,17 +79,21 @@ Z0_2 = nc.variables['Z0'][:]
 PLCOV_2 = nc.variables['PLCOV'][:]   
 
 # Reading the shapefile
-sf = shapefile.Reader("/project/mugi/nas/DATA/ROTATED/Buildings/swissBUILDINGS3D_1.0/buildings3D_domain")
+sf = shapefile.Reader("/media/pick/Data/DCEP/MergedSHP/3dbuildings_masked.shp")
 shapes = sf.shapes()
-sf_t = shapefile.Reader("/project/mugi/nas/DATA/WGS84/Trees/remote_sensed/2017-09-04_zurich_trees_all")
+#sf_t = shapefile.Reader("/project/mugi/nas/DATA/WGS84/Trees/remote_sensed/2017-09-04_zurich_trees_all")
 
 ##############################################################################################
 
 # Extracting the urban fraction
+
 xx, yy = np.meshgrid(lon_v_lu, lat_v_lu)
 coords_lu = np.append(xx.flatten()[:,np.newaxis], yy.flatten()[:,np.newaxis], axis = 1)
 var_lu = var_lu.flatten()
-coords_mod = np.append(lon_v.flatten()[:,np.newaxis], lat_v.flatten()[:,np.newaxis], axis = 1)
+# Meshgrid for rotated latlon coordinates
+RLON_V, RLAT_V = np.meshgrid(rlon_v, rlat_v)
+coords_mod = np.append(RLON_V.flatten()[:,np.newaxis], RLAT_V.flatten()[:,np.newaxis], axis = 1)
+
 VAR = interpolate.griddata(coords_lu, var_lu, coords_mod, method = 'nearest')
 FR_URBAN[0,:,:] = np.reshape(VAR, np.shape(lat_v))
 FR_URBAN = FR_URBAN / 100 # in percentage, as required by the model
@@ -180,7 +184,7 @@ OMEGA[0,:,:] = 0.5 # more relistic value for now
 
 # Calculating the building width 
 BUILD_W[0,:,:,:] = FR_BLD[0,np.newaxis,:,:]/FR_STREET[0,np.newaxis,:,:]*STREET_W[0,:,:,:]
-BUILD_W[BUILD_W > 50] = 50
+BUILD_W[BUILD_W > 50.0] = 50.
 # formula used by Schubert, from Martilli (2009)
 
 # Calculating and normalizing the canyon direction distribution
@@ -204,9 +208,11 @@ for j in range(0, udir_d):
 FR_ROOF[FR_ROOF<0.001] = 0 # to avoid negative values 
 
 # Updating the mask with LAD values
-LAD_mask = copy.deepcopy(LAD_C[:,0,1,:,:])
-LAD_mask[LAD_mask>0] = 1
-FR_URBANCL[LAD_mask != 1] = 0
+
+if LAD_flag:
+    LAD_mask = copy.deepcopy(LAD_C[:,0,1,:,:])
+    LAD_mask[LAD_mask>0] = 1
+    FR_URBANCL[LAD_mask != 1] = 0
 
 # Masking the 0 values # TO COMPLETE AT THE END
 mask[:,:,:,:] = FR_URBANCL[0,np.newaxis,:,:]
@@ -384,4 +390,4 @@ z0_2[:] = Z0_2
 nc.close()
 nc_lu.close()
 
-print 'New netCDF file generated'
+print ('New netCDF file generated')
