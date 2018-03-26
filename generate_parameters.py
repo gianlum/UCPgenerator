@@ -21,8 +21,8 @@ import geo2rot
 LAD_flag = 0# calculate LAD
 
 # Opening the netCDF datasets
-nc = Dataset('/media/pick/Data/DCEP/laf2015062200.nc','a')
-nc_lu = Dataset('/media/pick/Data/DCEP/basel_reproject.nc','r')
+nc = Dataset('/project/mugi/nas/PAPER2/CCLM-DCEP-Tree/int2lm/laf2015062200.nc','a')
+nc_lu = Dataset('/project/mugi/nas/PAPER2/datasets/land_use/basel_reproject.nc','r')
 
 # Importing dimensions
 rlon_d = len(nc.dimensions['rlon'])
@@ -79,7 +79,7 @@ Z0_2 = nc.variables['Z0'][:]
 PLCOV_2 = nc.variables['PLCOV'][:]   
 
 # Reading the shapefile
-sf = shapefile.Reader("/media/pick/Data/DCEP/MergedSHP/3dbuildings_masked.shp")
+sf = shapefile.Reader("/project/mugi/nas/PAPER2/datasets/buildings/3dbuildings_masked.shp")
 shapes = sf.shapes()
 #sf_t = shapefile.Reader("/project/mugi/nas/DATA/WGS84/Trees/remote_sensed/2017-09-04_zurich_trees_all")
 
@@ -148,7 +148,7 @@ FR_URBANCL[FR_URBANCL!=1] = np.nan
 FR_STREET = FR_URBAN - FR_BLD
 FR_STREET[FR_STREET < 0] = 0
 FR_STREET[FR_STREET > 0.9] = 0.9
-STREET_W[0,:,:,:] = 5 + FR_STREET[0,np.newaxis,:,:] * 45 # empirical formula, with min=5 and max=50 m
+STREET_W[0,:,:,:] = 10 + FR_STREET[0,np.newaxis,:,:] * 30 # empirical formula, with min=10 and max=40 m
 
 if LAD_flag==1:
     # Calculating the LAD
