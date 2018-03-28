@@ -4,25 +4,26 @@
 # Urban Pre-processor for COSMO-DCEP #
 ######################################
 
-
 import copy
 import numpy as np
 from netCDF4 import Dataset
 import shapefile
-import find
 import cluster
 from scipy import interpolate
-
+import gdal
 import geometry
 import angle
 import geo2rot
 
 #Flags
-LAD_flag = 0# calculate LAD
+LAD_flag = 1 # calculate LAD
 
-# Opening the netCDF datasets
+# Opening the datasets
 nc = Dataset('/project/mugi/nas/PAPER2/CCLM-DCEP-Tree/int2lm/laf2015062200.nc','a')
 nc_lu = Dataset('/project/mugi/nas/PAPER2/datasets/land_use/basel_reproject.nc','r')
+sf = shapefile.Reader("/project/mugi/nas/PAPER2/datasets/buildings/3dbuildings_masked.shp")
+shapes = sf.shapes()
+veg_path = '/project/mugi/nas/PAPER2/datasets/native/DOM_VEG_all_count_WGS84.tif'
 
 # Importing dimensions
 rlon_d = len(nc.dimensions['rlon'])
@@ -77,13 +78,6 @@ mask2 = np.zeros((1, udir_d, uheight1_d, rlat_d, rlon_d))
 LAI_2 = nc.variables['LAI'][:]
 Z0_2 = nc.variables['Z0'][:]
 PLCOV_2 = nc.variables['PLCOV'][:]   
-
-# Reading the shapefile
-sf = shapefile.Reader("/project/mugi/nas/PAPER2/datasets/buildings/3dbuildings_masked.shp")
-shapes = sf.shapes()
-#sf_t = shapefile.Reader("/project/mugi/nas/DATA/WGS84/Trees/remote_sensed/2017-09-04_zurich_trees_all")
-
-##############################################################################################
 
 # Extracting the urban fraction
 
@@ -151,31 +145,73 @@ FR_STREET[FR_STREET > 0.9] = 0.9
 STREET_W[0,:,:,:] = 10 + FR_STREET[0,np.newaxis,:,:] * 30 # empirical formula, with min=10 and max=40 m
 
 if LAD_flag==1:
-    # Calculating the LAD
-    Vt = 1210. # "average tree" volume in m3, calculated from City of Zurich Tree dataset
-    LADt = 1. # m2 m-3 besed on Klingberg et al. (2017)
-    #Sc = 77400 # m2 surface of the grid cell caluclated with GIS (assumed constant in the city)
-    Sc = 1238400. # value for 1 km resolution
-    DH = 25. # m part where the vegetation can stay (between 27.5 and 2.5 m)
-    LAD_distr = np.array([0, 0.3, 0.25, 0.25, 0.1, 0.1]) # profile based on Zurich dataset
-    LAt = LADt * Vt # leaf area of "average tree" in m2
-    #
-    for x in range (0, 366322):
-        p_n = sf_t.shape(x).points[0]
-        p = geo2rot.g2r(p_n[0],p_n[1])
-        p = np.array(p)
-        lonC = p[0]
-        latC = p[1]
-        lon_idx = np.abs(rlon_v - lonC).argmin()
-        lat_idx = np.abs(rlat_v - latC).argmin()
-        Vc = Sc*DH #*FR_STREET[0,lat_idx,lon_idx] volume of canyon air in the grid cell in m3
-        LADc = LAt / Vc # canyon averaged LAD, contribution of 1 "average tree"
-        LADc_d = LAD_distr * LADc
-        LAD_C[0,:,1,lat_idx,lon_idx]+=LADc_d[1]
-        LAD_C[0,:,2,lat_idx,lon_idx]+=LADc_d[2]
-        LAD_C[0,:,3,lat_idx,lon_idx]+=LADc_d[3]
-        LAD_C[0,:,4,lat_idx,lon_idx]+=LADc_d[4]
-        LAD_C[0,:,5,lat_idx,lon_idx]+=LADc_d[5]
+    print('Calculating LAD')
+    # Read the dataset
+    veg = gdal.Open(veg_path)
+    # Create lat and lon arrays
+    lon_res = veg.GetGeoTransform()[1]
+    lon_l = veg.GetGeoTransform()[0]
+    lon_r = veg.GetGeoTransform()[0] + veg.RasterXSize * lon_res
+    lon = np.arange(lon_l, lon_r, lon_res)
+    lat_res = veg.GetGeoTransform()[5]
+    lat_l = veg.GetGeoTransform()[3] + lat_res
+    lat_r = veg.GetGeoTransform()[3] + veg.RasterYSize * lat_res
+    lat = np.arange(lat_l, lat_r, lat_res)
+    lon_s = np.zeros((len(lat),len(lon)))
+    lat_s = np.zeros((len(lat),len(lon)))
+    for j in range(0, len(lat)):
+        lon_s[j,:] = lon
+    for j in range(0, len(lon)):
+        lat_s[:,j] = lat
+
+    # Read band
+    data = veg.ReadAsArray()
+    data = data.astype(float)
+    # Write LAD into cosmo output
+    for j in range(0, len(lon)):
+        for k in range(0, len(lat)):
+            data_tmp = data[k,j]
+            if data_tmp >= 2:
+                # Identify corresponding grid cell
+                [lonC,latC] = np.array(geo2rot.g2r(lon_s[k,j],lat_s[k,j]))
+                lon_idx = np.abs(rlon_v - lonC).argmin()
+                lat_idx = np.abs(rlat_v - latC).argmin()
+                # Calculate LAD from Lidar canopy height
+                dx_lidar = 1.227 # m
+                area_lidar = dx_lidar * dx_lidar # m2
+                LAD_spec = 1. # m2 m-3
+                area_grid = 278. * 278. # m2
+                h_ug = 5. # m, height urban grida
+                h_cbase = 3 # m, height of the canopy base
+                data_tmp = data[k,j]
+                if data_tmp >= h_cbase : 
+                    LAD_C[0,:,0,lat_idx,lon_idx] += LAD_spec * area_lidar * \
+                            (h_ug - h_cbase) / area_grid / h_ug
+                if data_tmp >= 5 :
+                    LAD_C[0,:,1,lat_idx,lon_idx] += LAD_spec * area_lidar / area_grid 
+                if data_tmp >= 10 :
+                    LAD_C[0,:,2,lat_idx,lon_idx] += LAD_spec * area_lidar / area_grid
+                if data_tmp >= 15 :
+                    LAD_C[0,:,3,lat_idx,lon_idx] += LAD_spec * area_lidar / area_grid
+                if data_tmp >= 20 :
+                    LAD_C[0,:,4,lat_idx,lon_idx] += LAD_spec * area_lidar / area_grid
+                if data_tmp >= 25 :
+                    LAD_C[0,:,5,lat_idx,lon_idx] += LAD_spec * area_lidar / area_grid
+                if data_tmp >= 30 :
+                    LAD_C[0,:,6,lat_idx,lon_idx] += LAD_spec * area_lidar / area_grid
+                if data_tmp >= 35 :
+                    LAD_C[0,:,7,lat_idx,lon_idx] += LAD_spec * area_lidar / area_grid
+                if data_tmp >= 45 :
+                    LAD_C[0,:,8,lat_idx,lon_idx] += LAD_spec * area_lidar / area_grid
+                if data_tmp >= 50 :
+                    LAD_C[0,:,9,lat_idx,lon_idx] += LAD_spec * area_lidar / area_grid
+                if data_tmp >= 55 :
+                    LAD_C[0,:,10,lat_idx,lon_idx] += LAD_spec * area_lidar / area_grid
+           
+
+
+
+
 
 
 # Calculating the foliage clumping coefficient (OMEGA)
