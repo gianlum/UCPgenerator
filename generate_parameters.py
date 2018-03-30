@@ -16,7 +16,7 @@ import angle
 import geo2rot
 
 #Flags
-LAD_flag = 1 # calculate LAD
+LAD_flag = 0 # calculate LAD
 
 # Opening the datasets
 nc = Dataset('/project/mugi/nas/PAPER2/CCLM-DCEP-Tree/int2lm/laf2015062200.nc','a')
