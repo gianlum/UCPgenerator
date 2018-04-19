@@ -16,7 +16,10 @@ import angle
 import geo2rot
 
 #Flags
-LAD_flag = 0 # calculate LAD
+LAD_flag = 1 # calculate LAD
+
+# Height cluster
+new_approach = 0 # if 1, kees fr_roof 0 at the ground
 
 # Opening the datasets
 nc = Dataset('/project/mugi/nas/PAPER2/CCLM-DCEP-Tree/int2lm/laf2015062200.nc','a')
@@ -120,7 +123,11 @@ for x in range (0, N):
     AREA_BLD[0,lat_idx,lon_idx]+=area
     # Clustering the geomerty heights
     hgt = sf.record(x)[0]
-    hgt_class = cluster.height(hgt)
+    if new_approach==1:
+        hgt_class = cluster.height_new(hgt)
+    else:
+        hgt_class = cluster.height_old(hgt)
+
     FR_ROOF2[0,hgt_class,lat_idx,lon_idx]+=area
     for k in range (1, len(p)):
         vert_area = geometry.dist(p,k) * hgt 
