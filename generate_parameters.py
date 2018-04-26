@@ -16,7 +16,7 @@ import angle
 import geo2rot
 
 #Flags
-LAD_flag = 1 # calculate LAD
+LAD_flag = 0 # calculate LAD
 
 # Height cluster
 new_approach = 0 # if 1, kees fr_roof 0 at the ground
@@ -26,6 +26,7 @@ nc = Dataset('/project/mugi/nas/PAPER2/CCLM-DCEP-Tree/int2lm/laf2015062200.nc','
 nc_lu = Dataset('/project/mugi/nas/PAPER2/datasets/land_use/basel_reproject.nc','r')
 sf = shapefile.Reader("/project/mugi/nas/PAPER2/datasets/buildings/3dbuildings_masked.shp")
 shapes = sf.shapes()
+ufrac_path = '/project/mugi/nas/PAPER2/datasets/land_use/mosaic_20m_sealing_v2_WGS_cutted.tif'
 veg_path = '/project/mugi/nas/PAPER2/datasets/native/DOM_VEG_all_count_WGS84.tif'
 
 # Importing dimensions
@@ -67,6 +68,7 @@ FR_ROOF = np.zeros((1, udir_d, uheight1_d, rlat_d, rlon_d))
 FR_ROOF2 = np.zeros((1, uheight1_d, rlat_d, rlon_d))
 FR_URBANCL = np.zeros((1, rlat_d, rlon_d))
 FR_URBAN = np.zeros((1, rlat_d, rlon_d))
+FR_URBAN_count = np.zeros((1, rlat_d, rlon_d))
 M = np.zeros((1, rlat_d, rlon_d))
 FR_STREETD = np.zeros((1, udir_d, rlat_d, rlon_d))
 FR_STREET = np.zeros((1, udir_d, rlat_d, rlon_d))
@@ -83,17 +85,44 @@ Z0_2 = nc.variables['Z0'][:]
 PLCOV_2 = nc.variables['PLCOV'][:]   
 
 # Extracting the urban fraction
+# Read the dataset
+ufrac = gdal.Open(ufrac_path)
+# Create lat and lon arrays
+lon_res = ufrac.GetGeoTransform()[1]
+lon_l = ufrac.GetGeoTransform()[0]
+lon_r = ufrac.GetGeoTransform()[0] + ufrac.RasterXSize * lon_res
+lon = np.arange(lon_l, lon_r, lon_res)
+lat_res = ufrac.GetGeoTransform()[5]
+lat_l = ufrac.GetGeoTransform()[3] + lat_res
+lat_r = ufrac.GetGeoTransform()[3] + ufrac.RasterYSize * lat_res
+lat = np.arange(lat_l, lat_r, lat_res)
+lon_s = np.zeros((len(lat),len(lon)))
+lat_s = np.zeros((len(lat),len(lon)))
+for j in range(0, len(lat)):
+    lon_s[j,:] = lon
 
-xx, yy = np.meshgrid(lon_v_lu, lat_v_lu)
-coords_lu = np.append(xx.flatten()[:,np.newaxis], yy.flatten()[:,np.newaxis], axis = 1)
-var_lu = var_lu.flatten()
-# Meshgrid for rotated latlon coordinates
-RLON_V, RLAT_V = np.meshgrid(rlon_v, rlat_v)
-coords_mod = np.append(RLON_V.flatten()[:,np.newaxis], RLAT_V.flatten()[:,np.newaxis], axis = 1)
+for j in range(0, len(lon)):
+    lat_s[:,j] = lat
 
-VAR = interpolate.griddata(coords_lu, var_lu, coords_mod, method = 'nearest')
-FR_URBAN[0,:,:] = np.reshape(VAR, np.shape(lat_v))
-FR_URBAN = FR_URBAN / 100 # in percentage, as required by the model
+# Read band
+data = ufrac.ReadAsArray()
+data = data.astype(float)
+# Write LAD into cosmo output
+for j in range(0, len(lon)):
+    for k in range(0, len(lat)):
+        data_tmp = data[k,j]
+        # Identify corresponding grid cell
+        [lonC,latC] = np.array(geo2rot.g2r(lon_s[k,j],lat_s[k,j]))
+        lon_idx = np.abs(rlon_v - lonC).argmin()
+        lat_idx = np.abs(rlat_v - latC).argmin()
+        # Calculate urban fraction contribution
+        data_tmp = data_tmp / 100.
+        FR_URBAN_count[0,lat_idx,lon_idx] += 1
+        FR_URBAN[0,lat_idx,lon_idx] += data_tmp
+    
+
+
+FR_URBAN = FR_URBAN/FR_URBAN_count
 
 # Defining the urban class mask
 FR_URBANCL = copy.deepcopy(FR_URBAN)
