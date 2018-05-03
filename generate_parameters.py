@@ -23,11 +23,10 @@ new_approach = 0 # if 1, kees fr_roof 0 at the ground
 
 # Opening the datasets
 nc = Dataset('/project/mugi/nas/PAPER2/CCLM-DCEP-Tree/int2lm/laf2015062200.nc','a')
-nc_lu = Dataset('/project/mugi/nas/PAPER2/datasets/land_use/basel_reproject.nc','r')
 sf = shapefile.Reader("/project/mugi/nas/PAPER2/datasets/buildings/3dbuildings_masked.shp")
 shapes = sf.shapes()
 ufrac_path = '/project/mugi/nas/PAPER2/datasets/land_use/mosaic_20m_sealing_v2_WGS_cutted.tif'
-veg_path = '/project/mugi/nas/PAPER2/datasets/native/DOM_VEG_all_count_WGS84.tif'
+veg_path = '/project/mugi/nas/PAPER2/datasets/trees/DOM_VEG_all_count_WGS84.tif'
 
 # Importing dimensions
 rlon_d = len(nc.dimensions['rlon'])
@@ -42,9 +41,6 @@ rlon_v = nc.variables['rlon'][:]
 rlat_v = nc.variables['rlat'][:]
 lon_v = nc.variables['lon'][:]
 lat_v = nc.variables['lat'][:]
-lon_v_lu = nc_lu.variables['lon'][:]
-lat_v_lu = nc_lu.variables['lat'][:]
-var_lu = nc_lu.variables['Band1'][:]
 udir_v = np.array([-45, 0, 45, 90], dtype=np.float32)
 #uheight1_v = np.array([0, 5, 10, 15, 20, 25, 30, 35, 40, 50, 60, 80, 100], dtype=np.float32)
 uheight1_v = np.array([0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60], dtype=np.float32)
@@ -107,7 +103,7 @@ for j in range(0, len(lon)):
 # Read band
 data = ufrac.ReadAsArray()
 data = data.astype(float)
-# Write LAD into cosmo output
+# Write FR_URB into cosmo output
 for j in range(0, len(lon)):
     for k in range(0, len(lat)):
         data_tmp = data[k,j]
@@ -117,8 +113,9 @@ for j in range(0, len(lon)):
         lat_idx = np.abs(rlat_v - latC).argmin()
         # Calculate urban fraction contribution
         data_tmp = data_tmp / 100.
-        FR_URBAN_count[0,lat_idx,lon_idx] += 1
-        FR_URBAN[0,lat_idx,lon_idx] += data_tmp
+        FR_URBAN_count[0,lat_idx,lon_idx] += 1.
+        if data_tmp >= 0.5:
+            FR_URBAN[0,lat_idx,lon_idx] += 1.
     
 
 
@@ -213,8 +210,7 @@ if LAD_flag==1:
                 lon_idx = np.abs(rlon_v - lonC).argmin()
                 lat_idx = np.abs(rlat_v - latC).argmin()
                 # Calculate LAD from Lidar canopy height
-                dx_lidar = 1.227 # m
-                area_lidar = dx_lidar * dx_lidar # m2
+                area_lidar = 2.23 # m2 mesured in GIS
                 LAD_spec = 1. # m2 m-3
                 area_grid = 278. * 278. # m2
                 h_ug = 5. # m, height urban grida
@@ -460,6 +456,5 @@ z0_2[:] = Z0_2
 
 # Closing the netCDF
 nc.close()
-nc_lu.close()
 
 print ('New netCDF file generated')
