@@ -16,7 +16,7 @@ import angle
 import geo2rot
 
 #Flags
-LAD_flag = 0 # calculate LAD
+LAD_flag = 1 # calculate LAD
 
 # Height cluster
 new_approach = 0 # if 1, kees fr_roof 0 at the ground
@@ -26,7 +26,7 @@ nc = Dataset('/project/mugi/nas/PAPER2/CCLM-DCEP-Tree/int2lm/laf2015062200.nc','
 sf = shapefile.Reader("/project/mugi/nas/PAPER2/datasets/buildings/3dbuildings_masked.shp")
 shapes = sf.shapes()
 ufrac_path = '/project/mugi/nas/PAPER2/datasets/land_use/mosaic_20m_sealing_v2_WGS_cutted.tif'
-veg_path = '/project/mugi/nas/PAPER2/datasets/trees/DOM_VEG_all_count_WGS84.tif'
+veg_path = '/project/mugi/nas/PAPER2/datasets/trees/VEG_WGS84.tif'
 
 # Importing dimensions
 rlon_d = len(nc.dimensions['rlon'])
@@ -60,8 +60,9 @@ uheight1[:] = uheight1_v
 
 # Initializing the variables
 AREA_BLD = np.zeros((1, rlat_d, rlon_d))
+VERT_AREA = np.zeros((1, udir_d rlat_d, rlon_d))
+MEAN_HEIGHT = np.zeros((1, udir_d rlat_d, rlon_d))
 FR_ROOF = np.zeros((1, udir_d, uheight1_d, rlat_d, rlon_d))
-FR_ROOF2 = np.zeros((1, uheight1_d, rlat_d, rlon_d))
 FR_URBANCL = np.zeros((1, rlat_d, rlon_d))
 FR_URBAN = np.zeros((1, rlat_d, rlon_d))
 FR_URBAN_count = np.zeros((1, rlat_d, rlon_d))
@@ -73,6 +74,7 @@ BUILD_W = np.zeros((1, udir_d, rlat_d, rlon_d))
 LAD_C = np.zeros((1, udir_d, uheight1_d, rlat_d, rlon_d))
 LAD_B = np.zeros((1, udir_d, uheight1_d, rlat_d, rlon_d))
 OMEGA = np.zeros((1, rlat_d, rlon_d))
+LAI_URB = np.zeros((1, rlat_d, rlon_d))
 mask = np.zeros((1, udir_d, rlat_d, rlon_d))
 mask2 = np.zeros((1, udir_d, uheight1_d, rlat_d, rlon_d))
 
@@ -92,29 +94,29 @@ lat_res = ufrac.GetGeoTransform()[5]
 lat_l = ufrac.GetGeoTransform()[3] + lat_res
 lat_r = ufrac.GetGeoTransform()[3] + ufrac.RasterYSize * lat_res
 lat = np.arange(lat_l, lat_r, lat_res)
-lon_s = np.zeros((len(lat),len(lon)))
-lat_s = np.zeros((len(lat),len(lon)))
+lon_s_1 = np.zeros((len(lat),len(lon)))
+lat_s_1 = np.zeros((len(lat),len(lon)))
 for j in range(0, len(lat)):
-    lon_s[j,:] = lon
+    lon_s_1[j,:] = lon
 
 for j in range(0, len(lon)):
-    lat_s[:,j] = lat
+    lat_s_1[:,j] = lat
 
 # Read band
-data = ufrac.ReadAsArray()
-data = data.astype(float)
+data1 = ufrac.ReadAsArray()
+data1 = data1.astype(float)
 # Write FR_URB into cosmo output
 for j in range(0, len(lon)):
     for k in range(0, len(lat)):
-        data_tmp = data[k,j]
+        data1_tmp = data1[k,j]
         # Identify corresponding grid cell
-        [lonC,latC] = np.array(geo2rot.g2r(lon_s[k,j],lat_s[k,j]))
+        [lonC,latC] = np.array(geo2rot.g2r(lon_s_1[k,j],lat_s_1[k,j]))
         lon_idx = np.abs(rlon_v - lonC).argmin()
         lat_idx = np.abs(rlat_v - latC).argmin()
         # Calculate urban fraction contribution
-        data_tmp = data_tmp / 100.
+        data1_tmp = data1_tmp / 100.
         FR_URBAN_count[0,lat_idx,lon_idx] += 1.
-        if data_tmp >= 0.5:
+        if data1_tmp >= 0.5:
             FR_URBAN[0,lat_idx,lon_idx] += 1.
     
 
@@ -149,33 +151,31 @@ for x in range (0, N):
     AREA_BLD[0,lat_idx,lon_idx]+=area
     # Clustering the geomerty heights
     hgt = sf.record(x)[0]
+    MEAN_HEIGHT[0,lat_idx,lon_idx] = hgt * area
     if new_approach==1:
         hgt_class = cluster.height_new(hgt)
     else:
         hgt_class = cluster.height_old(hgt)
 
-    FR_ROOF2[0,hgt_class,lat_idx,lon_idx]+=area
-    for k in range (1, len(p)):
+    for k in range (1, len(p)): # Looping over building segments (facades)
         vert_area = geometry.dist(p,k) * hgt 
         ang = geometry.angle(p,k)
         ang_class = cluster.angle(ang)
+        # 
+        VERT_AREA[0,ang_class,lat_idx,lon_idx] += vert_area
         # Allocating the building area by direction and height
         FR_ROOF[0,ang_class,hgt_class,lat_idx,lon_idx]+=vert_area
 
 
-# Calculating the global building area fraction
-area_grid = abs(rlon_v[1]-rlon_v[0])*abs(rlat_v[1]-rlat_v[0]) # regular grid
-FR_BLD = AREA_BLD/area_grid
-FR_BLD[FR_BLD>0.9] = 0.9
-FR_URBANCL[FR_BLD<0.1] = 0
-FR_BLD[FR_URBANCL!=1] = 0
-FR_URBANCL[FR_URBANCL!=1] = np.nan
+# Calculating the area densities (Grimmond and Oke, 1998)
+area_grid = abs(rlon_v[1]-rlon_v[0])*abs(rlat_v[1]-rlat_v[0]) # regular grida
+lambda_p = AREA_BLD/area_grid*FR_URBAN
+lambda_f = VERT_AREA/area_grid*FR_URBAN
 
-# Calculating the street width
-FR_STREET = FR_URBAN - FR_BLD
-FR_STREET[FR_STREET < 0] = 0
-FR_STREET[FR_STREET > 0.9] = 0.9
-STREET_W[0,:,:,:] = 10 + FR_STREET[0,np.newaxis,:,:] * 30 # empirical formula, with min=10 and max=40 m
+# Calculating the street and building widths (Martilli, 2009)
+h_m = MEAN_HEIGHT / AREA_BLD
+BUILD_W = lambda_p / lambda_f * h_m
+STREET_W = (1 / lambda_p - 1) * lambda_p / lambda_f * h_m
 
 if LAD_flag==1:
     print('Calculating LAD')
@@ -190,56 +190,64 @@ if LAD_flag==1:
     lat_l = veg.GetGeoTransform()[3] + lat_res
     lat_r = veg.GetGeoTransform()[3] + veg.RasterYSize * lat_res
     lat = np.arange(lat_l, lat_r, lat_res)
-    lon_s = np.zeros((len(lat),len(lon)))
-    lat_s = np.zeros((len(lat),len(lon)))
+    lon_s_2 = np.zeros((len(lat),len(lon)))
+    lat_s_2 = np.zeros((len(lat),len(lon)))
     for j in range(0, len(lat)):
-        lon_s[j,:] = lon
+        lon_s_2[j,:] = lon
     for j in range(0, len(lon)):
-        lat_s[:,j] = lat
+        lat_s_2[:,j] = lat
 
     # Read band
-    data = veg.ReadAsArray()
-    data = data.astype(float)
+    data2 = veg.ReadAsArray()
+    data2 = data2.astype(float)
     # Write LAD into cosmo output
     for j in range(0, len(lon)):
         for k in range(0, len(lat)):
-            data_tmp = data[k,j]
-            if data_tmp >= 2:
+            data2_tmp = data2[k,j]
+            if data2_tmp > 0.:
                 # Identify corresponding grid cell
-                [lonC,latC] = np.array(geo2rot.g2r(lon_s[k,j],lat_s[k,j]))
+                [lonV,latV] = np.array(geo2rot.g2r(lon_s_2[k,j],lat_s_2[k,j]))
                 lon_idx = np.abs(rlon_v - lonC).argmin()
                 lat_idx = np.abs(rlat_v - latC).argmin()
                 # Calculate LAD from Lidar canopy height
                 area_lidar = 2.23 # m2 mesured in GIS
-                LAD_spec = 1. # m2 m-3
+                LAD_spec = 1. # m2 m-3 (Klingberg et al., 2017)
                 area_grid = 278. * 278. # m2
                 h_ug = 5. # m, height urban grida
-                h_cbase = 3 # m, height of the canopy base
-                data_tmp = data[k,j]
-                if data_tmp >= h_cbase : 
-                    LAD_C[0,:,0,lat_idx,lon_idx] += LAD_spec * area_lidar * \
+                h_cbase = 3. # m, height of the canopy base
+                data2_tmp = data2[k,j]
+                # Check if in-canyon vegetation
+                lon_urb_idx = np.abs(lon_s_1[0,:] - lon_s_2[k,j]).argmin()
+                lat_urb_idx = np.abs(lat_s_1[:,0] - lat_s_2[k,j]).argmin()
+                data1_tmp = data1[lat_urb_idx,lon_urb_idx]
+                if data1_tmp >= 0.5:
+                    # In-canyon vegetation
+                    if data2_tmp >= h_cbase : 
+                        LAD_C[0,:,0,lat_idx,lon_idx] += LAD_spec * area_lidar * \
                             (h_ug - h_cbase) / area_grid / h_ug
-                if data_tmp >= 5 :
-                    LAD_C[0,:,1,lat_idx,lon_idx] += LAD_spec * area_lidar / area_grid 
-                if data_tmp >= 10 :
-                    LAD_C[0,:,2,lat_idx,lon_idx] += LAD_spec * area_lidar / area_grid
-                if data_tmp >= 15 :
-                    LAD_C[0,:,3,lat_idx,lon_idx] += LAD_spec * area_lidar / area_grid
-                if data_tmp >= 20 :
-                    LAD_C[0,:,4,lat_idx,lon_idx] += LAD_spec * area_lidar / area_grid
-                if data_tmp >= 25 :
-                    LAD_C[0,:,5,lat_idx,lon_idx] += LAD_spec * area_lidar / area_grid
-                if data_tmp >= 30 :
-                    LAD_C[0,:,6,lat_idx,lon_idx] += LAD_spec * area_lidar / area_grid
-                if data_tmp >= 35 :
-                    LAD_C[0,:,7,lat_idx,lon_idx] += LAD_spec * area_lidar / area_grid
-                if data_tmp >= 45 :
-                    LAD_C[0,:,8,lat_idx,lon_idx] += LAD_spec * area_lidar / area_grid
-                if data_tmp >= 50 :
-                    LAD_C[0,:,9,lat_idx,lon_idx] += LAD_spec * area_lidar / area_grid
-                if data_tmp >= 55 :
-                    LAD_C[0,:,10,lat_idx,lon_idx] += LAD_spec * area_lidar / area_grid
-           
+                    if data2_tmp >= 5 :
+                        LAD_C[0,:,1,lat_idx,lon_idx] += LAD_spec * area_lidar / area_grid 
+                    if data2_tmp >= 10 :
+                        LAD_C[0,:,2,lat_idx,lon_idx] += LAD_spec * area_lidar / area_grid
+                    if data2_tmp >= 15 :
+                        LAD_C[0,:,3,lat_idx,lon_idx] += LAD_spec * area_lidar / area_grid
+                    if data2_tmp >= 20 :
+                        LAD_C[0,:,4,lat_idx,lon_idx] += LAD_spec * area_lidar / area_grid
+                    if data2_tmp >= 25 :
+                        LAD_C[0,:,5,lat_idx,lon_idx] += LAD_spec * area_lidar / area_grid
+                    if data2_tmp >= 30 :
+                        LAD_C[0,:,6,lat_idx,lon_idx] += LAD_spec * area_lidar / area_grid
+                    if data2_tmp >= 35 :
+                        LAD_C[0,:,7,lat_idx,lon_idx] += LAD_spec * area_lidar / area_grid
+                    if data2_tmp >= 45 :
+                        LAD_C[0,:,8,lat_idx,lon_idx] += LAD_spec * area_lidar / area_grid
+                    if data2_tmp >= 50 :
+                        LAD_C[0,:,9,lat_idx,lon_idx] += LAD_spec * area_lidar / area_grid
+                    if data2_tmp >= 55 :
+                        LAD_C[0,:,10,lat_idx,lon_idx] += LAD_spec * area_lidar / area_grid
+                else:
+                    # Out-canyon vegetation
+                    LAI_URB[0,lat_idx,lon_idx] += LAD_spec * area_lidar * data2_tmp / area_grid
 
 
 
@@ -249,11 +257,6 @@ if LAD_flag==1:
 # Calculating the foliage clumping coefficient (OMEGA)
 # TO DO: implement a way to calculate from tree distribution
 OMEGA[0,:,:] = 0.5 # more relistic value for now
-
-# Calculating the building width 
-BUILD_W[0,:,:,:] = FR_BLD[0,np.newaxis,:,:]/FR_STREET[0,np.newaxis,:,:]*STREET_W[0,:,:,:]
-BUILD_W[BUILD_W > 50.0] = 50.
-# formula used by Schubert, from Martilli (2009)
 
 # Calculating and normalizing the canyon direction distribution
 FR_STREETD = np.sum(FR_ROOF,2)
@@ -290,10 +293,6 @@ FR_URBAN[FR_URBANCL != 1] = np.nan
 FR_URBAN = np.ma.masked_invalid(FR_URBAN)
 FR_URBAN.fill_value = -999
 
-FR_BLD[FR_URBANCL != 1] = np.nan
-FR_BLD = np.ma.masked_invalid(FR_BLD)
-FR_BLD.fill_value = -999
-
 FR_ROOF[mask2 != 1] = np.nan
 FR_ROOF = np.ma.masked_invalid(FR_ROOF)
 FR_ROOF.fill_value = -999
@@ -328,41 +327,28 @@ LAI_2[FR_URBANCL == 1] = 3
 Z0_2[FR_URBANCL == 1] = 0.1
 
 # Defining the Variables
-fr_bld = nc.createVariable('FR_BUILD','f4',('uclass','rlat','rlon',),fill_value=-999)
 fr_roof = nc.createVariable('FR_ROOF','f4',('uclass','udir','uheight1','rlat','rlon',),fill_value=-999)
-fr_roof2 = nc.createVariable('FR_ROOF2','f4',('uclass','uheight1','rlat','rlon',),fill_value=-999)
 fr_urbancl = nc.createVariable('FR_UCLASS','f4',('uclass','rlat','rlon'),fill_value=-999)
 fr_urban = nc.createVariable('FR_URB','f4',('uclass','rlat','rlon'),fill_value=-999)
 fr_streetd = nc.createVariable('FR_UDIR','f4',('uclass','udir','rlat','rlon',),fill_value=-999)
-street_w = nc.createVariable('W_STREET','f4',('uclass','udir','rlat','rlon',))
-build_w = nc.createVariable('W_BUILD','f4',('uclass','udir','rlat','rlon'))
+street_w = nc.createVariable('W_STREET','f4',('uclass','udir','rlat','rlon',),fill_value=-999)
+build_w = nc.createVariable('W_BUILD','f4',('uclass','udir','rlat','rlon'),fill_value=-999)
 lad_c = nc.createVariable('LAD_C','f4',('uclass','udir','uheight1','rlat','rlon'),fill_value=-999)
 lad_b = nc.createVariable('LAD_B','f4',('uclass','udir','uheight1','rlat','rlon'),fill_value=-999)
 omega_r = nc.createVariable('OMEGA_R','f4',('uclass','rlat','rlon'),fill_value=-999)
 omega_d = nc.createVariable('OMEGA_D','f4',('uclass','rlat','rlon'),fill_value=-999)
+lai_urban = nc.createVariable('LAI_URB','f4',('uclass','rlat','rlon'),fill_value=-999)
 
 lai_2 = nc.createVariable('LAI_2','f4',('time','rlat','rlon'))
 plcov_2 = nc.createVariable('PLCOV_2','f4',('time','rlat','rlon'))
 z0_2 = nc.createVariable('Z0_2','f4',('time','rlat','rlon'))
 
 # Writing attributes
-fr_bld.units = '1'
-fr_bld.standard_name = 'Building Fraction'
-fr_bld.long_name = 'Fraction of building horizontal surfaces'
-fr_bld.coordinates = 'lon lat'
-fr_bld.grid_mapping = 'rotated_pole'
-
 fr_roof.units = '1'
 fr_roof.standard_name = 'Wall surfaces fraction'
 fr_roof.long_name = 'Fraction of wall surfaces per direction and height'
 fr_roof.coordinates = 'lon lat'
 fr_roof.grid_mapping = 'rotated_pole'
-
-fr_roof2.units = '1'
-fr_roof2.standard_name = 'Roof surfaces fraction'
-fr_roof2.long_name = 'Fraction of roof surfaces per direction and height'
-fr_roof2.coordinates = 'lon lat'
-fr_roof2.grid_mapping = 'rotated_pole'
 
 fr_urbancl.units = '1'
 fr_urbancl.standard_name = 'Urban Mask'
@@ -418,6 +404,12 @@ omega_d.long_name = 'Neighborhood-scale clumping coeff. for drag for tree foliag
 omega_d.coordinates = 'lon lat'
 omega_d.grid_mapping = 'rotated_pole'
 
+lai_urban.units = '1'
+lai_urban.standard_name = 'Out-Canyon Leaf Area Index'
+lai_urban.long_name = 'Leaf Area Index from vegetation outside the street canyon'
+lai_urban.coordinates = 'lon lat'
+lai_urban.grid_mapping = 'rotated_pole'
+
 lai_2.units = 'm2m-2'
 lai_2.standard_name = 'Leaf Area Index 2'
 lai_2.long_name = 'Leaf Area Index for urban vegetation'
@@ -437,9 +429,7 @@ z0_2.coordinates = 'lon lat'
 z0_2.grid_mapping = 'rotated_pole'
 
 # Inserting data into variables
-fr_bld[:] = FR_BLD
 fr_roof[:] = FR_ROOF
-fr_roof2[:] = FR_ROOF2
 fr_urbancl[:] = FR_URBANCL
 fr_urban[:] = FR_URBAN
 fr_streetd[:] = FR_STREETD
@@ -449,6 +439,7 @@ lad_c[:] = LAD_C
 lad_b[:] = LAD_B
 omega_r[:] = OMEGA
 omega_d[:] = OMEGA
+lai_urban[:] = LAI_URB
 
 lai_2[:] = LAI_2
 plcov_2[:] = PLCOV_2
