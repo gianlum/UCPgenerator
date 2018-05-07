@@ -16,14 +16,14 @@ import angle
 import geo2rot
 
 #Flags
-LAD_flag = 1 # calculate LAD
+LAD_flag = 0 # calculate LAD
 
 # Height cluster
 new_approach = 0 # if 1, kees fr_roof 0 at the ground
 
 # Opening the datasets
 nc = Dataset('/project/mugi/nas/PAPER2/CCLM-DCEP-Tree/int2lm/laf2015062200.nc','a')
-sf = shapefile.Reader("/project/mugi/nas/PAPER2/datasets/buildings/3dbuildings_masked.shp")
+sf = shapefile.Reader("/project/mugi/nas/PAPER2/datasets/buildings/geom/3dbuildings_masked_geom.shp")
 shapes = sf.shapes()
 ufrac_path = '/project/mugi/nas/PAPER2/datasets/land_use/mosaic_20m_sealing_v2_WGS_cutted.tif'
 veg_path = '/project/mugi/nas/PAPER2/datasets/trees/VEG_WGS84.tif'
@@ -60,8 +60,8 @@ uheight1[:] = uheight1_v
 
 # Initializing the variables
 AREA_BLD = np.zeros((1, rlat_d, rlon_d))
-VERT_AREA = np.zeros((1, udir_d rlat_d, rlon_d))
-MEAN_HEIGHT = np.zeros((1, udir_d rlat_d, rlon_d))
+VERT_AREA = np.zeros((1, udir_d, rlat_d, rlon_d))
+MEAN_HEIGHT = np.zeros((1, udir_d, rlat_d, rlon_d))
 FR_ROOF = np.zeros((1, udir_d, uheight1_d, rlat_d, rlon_d))
 FR_URBANCL = np.zeros((1, rlat_d, rlon_d))
 FR_URBAN = np.zeros((1, rlat_d, rlon_d))
@@ -139,26 +139,28 @@ for x in range (0, N):
     shape = shapes[x]
     p = shape.points
     p = np.array(p)
-    # Reading the Area
-    area = sf.record(x)[2]
+    # Reading the Area (horizontal)
+    area = sf.record(x)[4]
     # Calculating the coordinates of the centroid of the polygon
     lonC = np.mean(p[:,0])
     latC = np.mean(p[:,1])
+    # Converting centroid to rotated coordinates
+    [lonC_r,latC_r] = geo2rot.g2r(lonC,latC)
     # Calculating the index of the correspoding grid point
-    lon_idx = np.abs(rlon_v - lonC).argmin()
-    lat_idx = np.abs(rlat_v - latC).argmin()
+    lon_idx = np.abs(rlon_v - lonC_r).argmin()
+    lat_idx = np.abs(rlat_v - latC_r).argmin()
     # Allocating the total building area
     AREA_BLD[0,lat_idx,lon_idx]+=area
     # Clustering the geomerty heights
     hgt = sf.record(x)[0]
-    MEAN_HEIGHT[0,lat_idx,lon_idx] = hgt * area
+    MEAN_HEIGHT[0,:,lat_idx,lon_idx] += hgt * area
     if new_approach==1:
         hgt_class = cluster.height_new(hgt)
     else:
         hgt_class = cluster.height_old(hgt)
 
     for k in range (1, len(p)): # Looping over building segments (facades)
-        vert_area = geometry.dist(p,k) * hgt 
+        vert_area = geometry.distWGS(p,k) * hgt 
         ang = geometry.angle(p,k)
         ang_class = cluster.angle(ang)
         # 
