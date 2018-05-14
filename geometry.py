@@ -24,7 +24,7 @@ def distWGS(array,k):
     x1 = array[k-1][0]
     x2 = array[k][0]
     y1 = array[k-1][1]
-    y2 = array[k][1]a
+    y2 = array[k][1]
     dLon = np.deg2rad(x2-x1)
     dLat = np.deg2rad(y2-y1)
     a = np.sin(dLat/2.) * np.sin(dLat/2.) + \

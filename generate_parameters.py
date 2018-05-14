@@ -17,6 +17,7 @@ import geo2rot
 
 #Flags
 LAD_flag = 0 # calculate LAD
+threshold = 1 # for urban fraction
 
 # Height cluster
 new_approach = 0 # if 1, kees fr_roof 0 at the ground
@@ -61,7 +62,7 @@ uheight1[:] = uheight1_v
 # Initializing the variables
 AREA_BLD = np.zeros((1, rlat_d, rlon_d))
 VERT_AREA = np.zeros((1, udir_d, rlat_d, rlon_d))
-MEAN_HEIGHT = np.zeros((1, udir_d, rlat_d, rlon_d))
+MEAN_HEIGHT = np.zeros((1, rlat_d, rlon_d))
 FR_ROOF = np.zeros((1, udir_d, uheight1_d, rlat_d, rlon_d))
 FR_URBANCL = np.zeros((1, rlat_d, rlon_d))
 FR_URBAN = np.zeros((1, rlat_d, rlon_d))
@@ -75,6 +76,8 @@ LAD_C = np.zeros((1, udir_d, uheight1_d, rlat_d, rlon_d))
 LAD_B = np.zeros((1, udir_d, uheight1_d, rlat_d, rlon_d))
 OMEGA = np.zeros((1, rlat_d, rlon_d))
 LAI_URB = np.zeros((1, rlat_d, rlon_d))
+LAMBDA_P = np.zeros((1, rlat_d, rlon_d))
+LAMBDA_F = np.zeros((1, rlat_d, rlon_d))
 mask = np.zeros((1, udir_d, rlat_d, rlon_d))
 mask2 = np.zeros((1, udir_d, uheight1_d, rlat_d, rlon_d))
 
@@ -116,8 +119,12 @@ for j in range(0, len(lon)):
         # Calculate urban fraction contribution
         data1_tmp = data1_tmp / 100.
         FR_URBAN_count[0,lat_idx,lon_idx] += 1.
-        if data1_tmp >= 0.5:
-            FR_URBAN[0,lat_idx,lon_idx] += 1.
+        if threshold == 1:
+            if data1_tmp >= 0.5:
+                FR_URBAN[0,lat_idx,lon_idx] += 1.
+        
+        elif threshold == 0:
+            FR_URBAN[0,lat_idx,lon_idx] += data1_tmp
     
 
 
@@ -153,7 +160,7 @@ for x in range (0, N):
     AREA_BLD[0,lat_idx,lon_idx]+=area
     # Clustering the geomerty heights
     hgt = sf.record(x)[0]
-    MEAN_HEIGHT[0,:,lat_idx,lon_idx] += hgt * area
+    MEAN_HEIGHT[0,lat_idx,lon_idx] += hgt * area
     if new_approach==1:
         hgt_class = cluster.height_new(hgt)
     else:
@@ -170,14 +177,23 @@ for x in range (0, N):
 
 
 # Calculating the area densities (Grimmond and Oke, 1998)
-area_grid = abs(rlon_v[1]-rlon_v[0])*abs(rlat_v[1]-rlat_v[0]) # regular grida
-lambda_p = AREA_BLD/area_grid*FR_URBAN
-lambda_f = VERT_AREA/area_grid*FR_URBAN
+#area_grid = abs(rlon_v[1]-rlon_v[0])*abs(rlat_v[1]-rlat_v[0]) # regular grida
+area_grid = 77970 # m2, calculated in GIS. TO DO: calculate from grid
+lambda_p = AREA_BLD[0,:,:]/(area_grid*FR_URBAN[0,:,:])
+lambda_p[lambda_p>1] = np.nan # remove non physical values
+lambda_p[lambda_p<0.1] = np.nan # lower limit for open low rise cond.
+lambda_f = np.mean(VERT_AREA[0,:,:,:],0)/(area_grid*FR_URBAN[0,:,:])
+lambda_f[lambda_f>1] = np.nan # remove non physical values
+lambda_f[lambda_f<0.1] = np.nan # lower limit for open low rise cond.
+LAMBDA_P[0,:,:] = lambda_p
+LAMBDA_F[0,:,:] = lambda_f
 
 # Calculating the street and building widths (Martilli, 2009)
-h_m = MEAN_HEIGHT / AREA_BLD
-BUILD_W = lambda_p / lambda_f * h_m
-STREET_W = (1 / lambda_p - 1) * lambda_p / lambda_f * h_m
+h_m = MEAN_HEIGHT[0,:,:] / AREA_BLD[0,:,:]
+h_m[h_m==15] = 10.
+BUILD_W[0,0,:,:] = lambda_p / lambda_f * h_m
+STREET_W[0,0,:,:] = (1 / lambda_p - 1) * lambda_p / lambda_f * h_m
+#STREET_W[STREET_W>50] = 50.  # remove non physical values
 
 if LAD_flag==1:
     print('Calculating LAD')
@@ -340,6 +356,8 @@ lad_b = nc.createVariable('LAD_B','f4',('uclass','udir','uheight1','rlat','rlon'
 omega_r = nc.createVariable('OMEGA_R','f4',('uclass','rlat','rlon'),fill_value=-999)
 omega_d = nc.createVariable('OMEGA_D','f4',('uclass','rlat','rlon'),fill_value=-999)
 lai_urban = nc.createVariable('LAI_URB','f4',('uclass','rlat','rlon'),fill_value=-999)
+lambda_p_var = nc.createVariable('LAMBDA_P','f4',('uclass','rlat','rlon'),fill_value=-999)
+lambda_f_var = nc.createVariable('LAMBDA_F','f4',('uclass','rlat','rlon'),fill_value=-999)
 
 lai_2 = nc.createVariable('LAI_2','f4',('time','rlat','rlon'))
 plcov_2 = nc.createVariable('PLCOV_2','f4',('time','rlat','rlon'))
@@ -418,6 +436,18 @@ lai_2.long_name = 'Leaf Area Index for urban vegetation'
 lai_2.coordinates = 'lon lat'
 lai_2.grid_mapping = 'rotated_pole'
 
+lambda_p_var.units = '-'
+lambda_p_var.standard_name = 'Plan Area Density'
+lambda_p_var.long_name = 'Plan Area Density as in Grimmond and Oke 1998'
+lambda_p_var.coordinates = 'lon lat'
+lambda_p_var.grid_mapping = 'rotated_pole'
+
+lambda_f_var.units = '-'
+lambda_f_var.standard_name = 'Frontal Area Density'
+lambda_f_var.long_name = 'Frontal Area Density as in Grimmond and Oke 1998'
+lambda_f_var.coordinates = 'lon lat'
+lambda_f_var.grid_mapping = 'rotated_pole'
+
 plcov_2.units = '1'
 plcov_2.standard_name = 'Plant Coverage 2'
 plcov_2.long_name = 'Plant coverage for urban vegetation'
@@ -442,6 +472,8 @@ lad_b[:] = LAD_B
 omega_r[:] = OMEGA
 omega_d[:] = OMEGA
 lai_urban[:] = LAI_URB
+lambda_p_var[:] = LAMBDA_P
+lambda_f_var[:] = LAMBDA_F
 
 lai_2[:] = LAI_2
 plcov_2[:] = PLCOV_2
