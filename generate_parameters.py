@@ -16,8 +16,9 @@ import angle
 import geo2rot
 
 #Flags
-LAD_flag = 0 # calculate LAD
+LAD_flag = 1 # calculate LAD
 threshold = 1 # for urban fraction
+thr_val = 0.4 
 
 # Height cluster
 new_approach = 0 # if 1, kees fr_roof 0 at the ground
@@ -77,7 +78,7 @@ LAD_B = np.zeros((1, udir_d, uheight1_d, rlat_d, rlon_d))
 OMEGA = np.zeros((1, rlat_d, rlon_d))
 LAI_URB = np.zeros((1, rlat_d, rlon_d))
 LAMBDA_P = np.zeros((1, rlat_d, rlon_d))
-LAMBDA_F = np.zeros((1, rlat_d, rlon_d))
+LAMBDA_F = np.zeros((1, udir_d, rlat_d, rlon_d))
 mask = np.zeros((1, udir_d, rlat_d, rlon_d))
 mask2 = np.zeros((1, udir_d, uheight1_d, rlat_d, rlon_d))
 
@@ -120,7 +121,7 @@ for j in range(0, len(lon)):
         data1_tmp = data1_tmp / 100.
         FR_URBAN_count[0,lat_idx,lon_idx] += 1.
         if threshold == 1:
-            if data1_tmp >= 0.5:
+            if data1_tmp >= thr_val:
                 FR_URBAN[0,lat_idx,lon_idx] += 1.
         
         elif threshold == 0:
@@ -180,23 +181,24 @@ for x in range (0, N):
 #area_grid = abs(rlon_v[1]-rlon_v[0])*abs(rlat_v[1]-rlat_v[0]) # regular grida
 area_grid = 77970 # m2, calculated in GIS. TO DO: calculate from grid
 lambda_p = AREA_BLD[0,:,:]/(area_grid*FR_URBAN[0,:,:])
-lambda_p[lambda_p>1] = np.nan # remove non physical values
-lambda_p[lambda_p<0.1] = np.nan # lower limit for open low rise cond.
-lambda_f = np.mean(VERT_AREA[0,:,:,:],0)/(area_grid*FR_URBAN[0,:,:])
-lambda_f[lambda_f>1] = np.nan # remove non physical values
-lambda_f[lambda_f<0.1] = np.nan # lower limit for open low rise cond.
+lambda_p[lambda_p>0.9] = 0.9 # upper limit
+lambda_p[lambda_p<0.1] = 0.1 # lower limit
+lambda_f = VERT_AREA[0,:,:,:]/(area_grid*FR_URBAN[0,:,:])
+lambda_f[lambda_f>0.9] = 0.9 # upper limit
+lambda_f[lambda_f<0.1] = 0.1 # lower limit 
 LAMBDA_P[0,:,:] = lambda_p
-LAMBDA_F[0,:,:] = lambda_f
+LAMBDA_F[0,:,:,:] = lambda_f
 
 # Calculating the street and building widths (Martilli, 2009)
 h_m = MEAN_HEIGHT[0,:,:] / AREA_BLD[0,:,:]
 h_m[h_m==15] = 10.
-BUILD_W[0,0,:,:] = lambda_p / lambda_f * h_m
-STREET_W[0,0,:,:] = (1 / lambda_p - 1) * lambda_p / lambda_f * h_m
-#STREET_W[STREET_W>50] = 50.  # remove non physical values
+BUILD_W[0,:,:,:] = lambda_p[np.newaxis,:,:] / lambda_f[:,:,:] * h_m
+STREET_W[0,:,:,:] = (1 / lambda_p[np.newaxis,:,:] - 1) * lambda_p[np.newaxis,:,:] / lambda_f * h_m
+#STREET_W[STREET_W<5] = 5  # min aspect ration LCZ 2
+#STREET_W[STREET_W>100] = 100  # max aspect ration LCZ 9
 
 if LAD_flag==1:
-    print('Calculating LAD')
+    print('Reading trees dataset')
     # Read the dataset
     veg = gdal.Open(veg_path)
     # Create lat and lon arrays
@@ -218,6 +220,9 @@ if LAD_flag==1:
     # Read band
     data2 = veg.ReadAsArray()
     data2 = data2.astype(float)
+    # Remove anomalous values
+    data2[data2>20] = 20
+    print('Calculating LAD')
     # Write LAD into cosmo output
     for j in range(0, len(lon)):
         for k in range(0, len(lat)):
@@ -225,20 +230,19 @@ if LAD_flag==1:
             if data2_tmp > 0.:
                 # Identify corresponding grid cell
                 [lonV,latV] = np.array(geo2rot.g2r(lon_s_2[k,j],lat_s_2[k,j]))
-                lon_idx = np.abs(rlon_v - lonC).argmin()
-                lat_idx = np.abs(rlat_v - latC).argmin()
+                lon_idx = np.abs(rlon_v - lonV).argmin()
+                lat_idx = np.abs(rlat_v - latV).argmin()
                 # Calculate LAD from Lidar canopy height
-                area_lidar = 2.23 # m2 mesured in GIS
+                area_lidar = 1. # m2 mesured in GIS
                 LAD_spec = 1. # m2 m-3 (Klingberg et al., 2017)
-                area_grid = 278. * 278. # m2
+                area_grid = 278.93 * 278.93 # m2
                 h_ug = 5. # m, height urban grida
                 h_cbase = 3. # m, height of the canopy base
-                data2_tmp = data2[k,j]
                 # Check if in-canyon vegetation
                 lon_urb_idx = np.abs(lon_s_1[0,:] - lon_s_2[k,j]).argmin()
                 lat_urb_idx = np.abs(lat_s_1[:,0] - lat_s_2[k,j]).argmin()
                 data1_tmp = data1[lat_urb_idx,lon_urb_idx]
-                if data1_tmp >= 0.5:
+                if data1_tmp >= thr_val:
                     # In-canyon vegetation
                     if data2_tmp >= h_cbase : 
                         LAD_C[0,:,0,lat_idx,lon_idx] += LAD_spec * area_lidar * \
@@ -265,7 +269,7 @@ if LAD_flag==1:
                         LAD_C[0,:,10,lat_idx,lon_idx] += LAD_spec * area_lidar / area_grid
                 else:
                     # Out-canyon vegetation
-                    LAI_URB[0,lat_idx,lon_idx] += LAD_spec * area_lidar * data2_tmp / area_grid
+                    LAI_URB[0,lat_idx,lon_idx] += LAD_spec * area_lidar * (data2_tmp-h_cbase) / area_grid
 
 
 
@@ -298,10 +302,11 @@ FR_ROOF[FR_ROOF<0.001] = 0 # to avoid negative values
 
 # Updating the mask with LAD values
 
-if LAD_flag:
-    LAD_mask = copy.deepcopy(LAD_C[:,0,1,:,:])
-    LAD_mask[LAD_mask>0] = 1
-    FR_URBANCL[LAD_mask != 1] = 0
+# TO DO: do we need this?
+#if LAD_flag:
+#    LAD_mask = copy.deepcopy(LAD_C[:,0,1,:,:])
+#    LAD_mask[LAD_mask>0] = 1
+#    FR_URBANCL[LAD_mask != 1] = 0
 
 # Masking the 0 values # TO COMPLETE AT THE END
 mask[:,:,:,:] = FR_URBANCL[0,np.newaxis,:,:]
@@ -339,6 +344,18 @@ OMEGA[FR_URBANCL != 1] = np.nan
 OMEGA = np.ma.masked_invalid(OMEGA)
 OMEGA.fill_value = -999
 
+LAI_URB[FR_URBANCL != 1] = np.nan
+LAI_URB = np.ma.masked_invalid(LAI_URB)
+LAI_URB.fill_value = -999
+
+LAMBDA_P[FR_URBANCL != 1] = np.nan
+LAMBDA_P = np.ma.masked_invalid(LAMBDA_P)
+LAMBDA_P.fill_value = -999
+
+LAMBDA_F[mask != 1] = np.nan
+LAMBDA_F = np.ma.masked_invalid(LAMBDA_F)
+LAMBDA_F.fill_value = -999
+
 # Creating the additional "_2" variables for DCEP
 PLCOV_2[FR_URBANCL == 1] = 0.8
 LAI_2[FR_URBANCL == 1] = 3
@@ -357,7 +374,7 @@ omega_r = nc.createVariable('OMEGA_R','f4',('uclass','rlat','rlon'),fill_value=-
 omega_d = nc.createVariable('OMEGA_D','f4',('uclass','rlat','rlon'),fill_value=-999)
 lai_urban = nc.createVariable('LAI_URB','f4',('uclass','rlat','rlon'),fill_value=-999)
 lambda_p_var = nc.createVariable('LAMBDA_P','f4',('uclass','rlat','rlon'),fill_value=-999)
-lambda_f_var = nc.createVariable('LAMBDA_F','f4',('uclass','rlat','rlon'),fill_value=-999)
+lambda_f_var = nc.createVariable('LAMBDA_F','f4',('uclass','udir','rlat','rlon'),fill_value=-999)
 
 lai_2 = nc.createVariable('LAI_2','f4',('time','rlat','rlon'))
 plcov_2 = nc.createVariable('PLCOV_2','f4',('time','rlat','rlon'))
@@ -438,13 +455,13 @@ lai_2.grid_mapping = 'rotated_pole'
 
 lambda_p_var.units = '-'
 lambda_p_var.standard_name = 'Plan Area Density'
-lambda_p_var.long_name = 'Plan Area Density as in Grimmond and Oke 1998'
+lambda_p_var.long_name = 'Plan Area Density'
 lambda_p_var.coordinates = 'lon lat'
 lambda_p_var.grid_mapping = 'rotated_pole'
 
 lambda_f_var.units = '-'
 lambda_f_var.standard_name = 'Frontal Area Density'
-lambda_f_var.long_name = 'Frontal Area Density as in Grimmond and Oke 1998'
+lambda_f_var.long_name = 'Frontal Area Density'
 lambda_f_var.coordinates = 'lon lat'
 lambda_f_var.grid_mapping = 'rotated_pole'
 
