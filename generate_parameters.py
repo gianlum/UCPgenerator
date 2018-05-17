@@ -247,26 +247,26 @@ if LAD_flag==1:
                     if data2_tmp >= h_cbase : 
                         LAD_C[0,:,0,lat_idx,lon_idx] += LAD_spec * area_lidar * \
                             (h_ug - h_cbase) / area_grid / h_ug
-                    if data2_tmp >= 5 :
-                        LAD_C[0,:,1,lat_idx,lon_idx] += LAD_spec * area_lidar / area_grid 
-                    if data2_tmp >= 10 :
-                        LAD_C[0,:,2,lat_idx,lon_idx] += LAD_spec * area_lidar / area_grid
-                    if data2_tmp >= 15 :
-                        LAD_C[0,:,3,lat_idx,lon_idx] += LAD_spec * area_lidar / area_grid
-                    if data2_tmp >= 20 :
-                        LAD_C[0,:,4,lat_idx,lon_idx] += LAD_spec * area_lidar / area_grid
-                    if data2_tmp >= 25 :
-                        LAD_C[0,:,5,lat_idx,lon_idx] += LAD_spec * area_lidar / area_grid
-                    if data2_tmp >= 30 :
-                        LAD_C[0,:,6,lat_idx,lon_idx] += LAD_spec * area_lidar / area_grid
-                    if data2_tmp >= 35 :
-                        LAD_C[0,:,7,lat_idx,lon_idx] += LAD_spec * area_lidar / area_grid
-                    if data2_tmp >= 45 :
-                        LAD_C[0,:,8,lat_idx,lon_idx] += LAD_spec * area_lidar / area_grid
-                    if data2_tmp >= 50 :
-                        LAD_C[0,:,9,lat_idx,lon_idx] += LAD_spec * area_lidar / area_grid
-                    if data2_tmp >= 55 :
-                        LAD_C[0,:,10,lat_idx,lon_idx] += LAD_spec * area_lidar / area_grid
+                    elif data2_tmp >= 5 :
+                        LAD_C[0,:,1,lat_idx,lon_idx] += LAD_spec * (min(data2_tmp,10)-5)/5. * area_lidar / area_grid
+                    elif data2_tmp >= 10 :
+                        LAD_C[0,:,2,lat_idx,lon_idx] += LAD_spec * (min(data2_tmp,10)-5)/10. * area_lidar / area_grid
+                    elif data2_tmp >= 15 :
+                        LAD_C[0,:,3,lat_idx,lon_idx] += LAD_spec * (min(data2_tmp,10)-5)/15. * area_lidar / area_grid
+                    elif data2_tmp >= 20 :
+                        LAD_C[0,:,4,lat_idx,lon_idx] += LAD_spec * (min(data2_tmp,10)-5)/20. * area_lidar / area_grid
+                    elif data2_tmp >= 25 :
+                        LAD_C[0,:,5,lat_idx,lon_idx] += LAD_spec * (min(data2_tmp,10)-5)/25. * area_lidar / area_grid
+                    elif data2_tmp >= 30 :
+                        LAD_C[0,:,6,lat_idx,lon_idx] += LAD_spec * (min(data2_tmp,10)-5)/30. * area_lidar / area_grid
+                    elif data2_tmp >= 35 :
+                        LAD_C[0,:,7,lat_idx,lon_idx] += LAD_spec * (min(data2_tmp,10)-5)/35. * area_lidar / area_grid
+                    elif data2_tmp >= 45 :
+                        LAD_C[0,:,8,lat_idx,lon_idx] += LAD_spec * (min(data2_tmp,10)-5)/45. * area_lidar / area_grid
+                    elif data2_tmp >= 50 :
+                        LAD_C[0,:,9,lat_idx,lon_idx] += LAD_spec * (min(data2_tmp,10)-5)/50. * area_lidar / area_grid
+                    elif data2_tmp >= 55 :
+                        LAD_C[0,:,10,lat_idx,lon_idx] += LAD_spec * (min(data2_tmp,10)-5)/55. * area_lidar / area_grid
                 else:
                     # Out-canyon vegetation
                     LAI_URB[0,lat_idx,lon_idx] += LAD_spec * area_lidar * (data2_tmp-h_cbase) / area_grid
@@ -300,15 +300,13 @@ for j in range(0, udir_d):
 
 FR_ROOF[FR_ROOF<0.001] = 0 # to avoid negative values 
 
+# Masking non-urban grid cells
 # Updating the mask with LAD values
+if LAD_flag==1:
+    LAD_mask = copy.deepcopy(LAD_C[:,0,1,:,:])
+    LAD_mask[LAD_mask>0] = 1
+    FR_URBANCL[LAD_mask != 1] = 0
 
-# TO DO: do we need this?
-#if LAD_flag:
-#    LAD_mask = copy.deepcopy(LAD_C[:,0,1,:,:])
-#    LAD_mask[LAD_mask>0] = 1
-#    FR_URBANCL[LAD_mask != 1] = 0
-
-# Masking the 0 values # TO COMPLETE AT THE END
 mask[:,:,:,:] = FR_URBANCL[0,np.newaxis,:,:]
 mask2[:,:,:,:,:] = FR_URBANCL[0,np.newaxis,np.newaxis,:,:]
 
