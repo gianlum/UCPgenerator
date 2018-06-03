@@ -18,7 +18,7 @@ import pack.tools as tools
 ## USER DEFINED PATHS AND PARAMETERS
 
 #Flags
-LAD_flag = 1 # calculate LAD
+LAD_flag = 0 # calculate LAD
 threshold = 1 # for urban fraction
 thr_val = 0.4 
 
@@ -79,8 +79,8 @@ LAD_C = np.zeros((1, udir_d, uheight1_d, rlat_d, rlon_d))
 LAD_B = np.zeros((1, udir_d, uheight1_d, rlat_d, rlon_d))
 OMEGA = np.zeros((1, rlat_d, rlon_d))
 LAI_URB = np.zeros((1, rlat_d, rlon_d))
-mask = np.zeros((1, udir_d, rlat_d, rlon_d))
-mask2 = np.zeros((1, udir_d, uheight1_d, rlat_d, rlon_d))
+mask3D = np.zeros((1, udir_d, rlat_d, rlon_d))
+mask4D = np.zeros((1, udir_d, uheight1_d, rlat_d, rlon_d))
 
 LAI_2 = nc.variables['LAI'][:]
 Z0_2 = nc.variables['Z0'][:]
@@ -113,15 +113,24 @@ FR_URBANCL[FR_URBANCL != 1] = 0
 #FR_URBANCL = np.ma.masked_invalid(FR_URBANCL)
 #FR_URBANCL.fill_value = -999
 
+# Updating the mask with FR_ROOF values
+FR_ROOF_mask = copy.deepcopy(np.sum(FR_ROOF,(1,2)))
+FR_ROOF_mask[FR_ROOF_mask>0.01] = 1
+FR_URBANCL[FR_ROOF_mask != 1] = 0
+
+# Debug: removing grid cells with issues
+FR_URBANCL[0,107-1,151-1] = 0
+FR_URBANCL[0,120-1,179-1] = 0
+
 # Updating the mask with LAD values
 if LAD_flag==1:
     LAD_mask = copy.deepcopy(LAD_C[:,0,1,:,:])
-    LAD_mask[LAD_mask>0.001] = 1
+    LAD_mask[LAD_mask>0.0001] = 1
     FR_URBANCL[LAD_mask != 1] = 0
 
 mask2D = FR_URBANCL
-mask3D = FR_URBANCL[:,np.newaxis,:,:]
-mask4D = FR_URBANCL[:,np.newaxis,np.newaxis,:,:]
+mask3D[:,:,:,:] = FR_URBANCL[0,np.newaxis,:,:]
+mask4D[:,:,:,:,:] = FR_URBANCL[0,np.newaxis,np.newaxis,:,:]
 
 FR_URBANCL = tools.mask(FR_URBANCL, mask2D)
 FR_URBAN = tools.mask(FR_URBAN, mask2D)
@@ -135,10 +144,11 @@ OMEGA = tools.mask(OMEGA, mask2D)
 
 # Creating the additional "_2" variables for DCEP
 PLCOV_2[FR_URBANCL == 1] = 0.8
-LAI_2[FR_URBANCL == 1] = 1
+LAI_2[FR_URBANCL == 1] = 1 # to account for grass
 Z0_2[FR_URBANCL == 1] = 0.1
 
-# Adding non-street trees
+# Adding non-street treesa
+LAI_URB[mask2D != 1] = 0 # only vegetation on urban cells
 LAI_2 = LAI_2 + LAI_URB
 
 ## WRITING BACK TO NETCDF
