@@ -18,9 +18,10 @@ import pack.tools as tools
 ## USER DEFINED PATHS AND PARAMETERS
 
 #Flags
-LAD_flag = 0 # calculate LAD
+LAD_flag = 1 # calculate LAD
 threshold = 1 # for urban fraction
 thr_val = 0.4 
+greening = True # use greening scenario
 
 # Height cluster
 new_approach = 0 # if 1, kees fr_roof 0 at the ground
@@ -100,7 +101,7 @@ print('Calculating canyon parameters')
 # Calculating the leaf area density
 if LAD_flag==1:
     print('Calculating vegetation density')
-    [LAD_C,OMEGA,LAI_URB] = veget.lidar(veg_path, thr_val, data1, rlat_v, rlon_v, lat_s_1, lon_s_1, LAD_C, OMEGA, LAI_URB)
+    [LAD_C,OMEGA,LAI_URB] = veget.lidar(veg_path, thr_val, data1, rlat_v, rlon_v, lat_s_1, lon_s_1, LAD_C, OMEGA, LAI_URB, greening)
 
 ## MASKING NON-URBAN CELLS
 print('Masking the urban cells')

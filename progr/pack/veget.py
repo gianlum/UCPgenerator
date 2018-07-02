@@ -8,7 +8,8 @@ import shapefile
 
 import geo2rot
 
-def lidar(veg_path, thr_val, data1, rlat_v, rlon_v, lat_s_1, lon_s_1, LAD_C, OMEGA, LAI_URB):
+def lidar(veg_path, thr_val, data1, rlat_v, rlon_v, lat_s_1, lon_s_1, \
+        LAD_C, OMEGA, LAI_URB, greening):
     # Inizializations
     # Read the dataset
     print('Reading tree dataset')
@@ -104,6 +105,9 @@ def lidar(veg_path, thr_val, data1, rlat_v, rlon_v, lat_s_1, lon_s_1, LAD_C, OME
 
 
 
+
+    if greening == True: # use greening scenario
+        LAD_C = LAD_C * (1 + 2.33 * np.exp(-1 * LAD_C/LAD_C.mean()))
 
     return LAD_C, OMEGA, LAI_URB
 
