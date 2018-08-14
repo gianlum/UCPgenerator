@@ -101,13 +101,14 @@ def lidar(veg_path, thr_val, data1, rlat_v, rlon_v, lat_s_1, lon_s_1, \
                     # Out-canyon vegetation
                     LAI_URB[0,lat_idx,lon_idx] += LAD_spec * area_lidar * (h_veg_tmp-h_cbase) \
                                                     / area_grid
-
-
-
-
-
+                       
+            
+        
+    
     if greening == True: # use greening scenario
-        LAD_C = LAD_C * (1 + 2.33 * np.exp(-1 * LAD_C/LAD_C.mean()))
+        print('greeing scenario active')
+        LAD_C_tmp = np.ma.masked_where(LAD_C==0, LAD_C)
+        LAD_C = LAD_C * (1 + 2.33 * np.exp(-1 * LAD_C_tmp/LAD_C_tmp.mean()))
 
     return LAD_C, OMEGA, LAI_URB
 
