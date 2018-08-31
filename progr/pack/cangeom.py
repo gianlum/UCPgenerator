@@ -10,7 +10,7 @@ import geometry
 import geo2rot
 
 def shp(sf_path, rlat_d, rlon_d, udir_d, uheight1_d, rlat_v, rlon_v, \
-        FR_URBAN, FR_ROOF):
+        FR_URBAN, FR_ROOF, norm_vert):
     # Inizializations
     AREA_BLD = np.zeros((1, rlat_d, rlon_d))
     BUILD_W = np.zeros((1, udir_d, rlat_d, rlon_d))
@@ -83,13 +83,23 @@ def shp(sf_path, rlat_d, rlon_d, udir_d, uheight1_d, rlat_v, rlon_v, \
     FR_STREETD = FR_STREETD/norm_streetd
 
     # Normalizing FR_ROOF
-    norm_fr_roof = np.sum(FR_ROOF,1)
+    if norm_vert == True:
+        norm_fr_roof = np.sum(FR_ROOF,2)
+    else:
+        norm_fr_roof = np.sum(FR_ROOF,1)
+    
     for j in range(0, udir_d):
         for k in range(0, uheight1_d):
             for o in range(0, rlat_d):
                 for z in range(0, rlon_d):
-                    if norm_fr_roof[0,k,o,z] != 0:
-                        FR_ROOF[0,j,k,o,z] = FR_ROOF[0,j,k,o,z]/norm_fr_roof[0,k,o,z]
+                    if norm_vert == True:
+                        if norm_fr_roof[0,j,o,z] != 0:
+                            FR_ROOF[0,j,k,o,z] = FR_ROOF[0,j,k,o,z]/norm_fr_roof[0,j,o,z]
+
+                    else:
+                        if norm_fr_roof[0,k,o,z] != 0:
+                            FR_ROOF[0,j,k,o,z] = FR_ROOF[0,j,k,o,z]/norm_fr_roof[0,k,o,z]
+
 
 
 

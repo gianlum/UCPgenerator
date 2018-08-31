@@ -25,6 +25,7 @@ greening = True # use greening scenario
 
 # Height cluster
 new_approach = 0 # if 1, kees fr_roof 0 at the ground
+norm_vert = True # normalize roof fraction over the vertical direction
 
 # Path to datasets
 nc_path = '/project/mugi/nas/PAPER2/CCLM-DCEP-Tree/int2lm/laf2015062200.nc'
@@ -96,7 +97,7 @@ print('Extracting the urban fraction')
 # Calculating the street canyon geometry parameters
 print('Calculating canyon parameters')
 [BUILD_W, STREET_W, FR_ROOF, FR_STREETD, shapes] = cangeom.shp(sf_path, rlat_d, rlon_d, udir_d, \
-        uheight1_d, rlat_v, rlon_v, FR_URBAN, FR_ROOF)
+        uheight1_d, rlat_v, rlon_v, FR_URBAN, FR_ROOF, norm_vert)
 
 # Calculating the leaf area density
 if LAD_flag==1:
