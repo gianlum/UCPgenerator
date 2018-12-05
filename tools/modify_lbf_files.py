@@ -39,7 +39,7 @@ for fic in files:
     plcov_2.long_name = 'Plant coverage for urban vegetation'
     plcov_2.coordinates = 'lon lat'
     plcov_2.grid_mapping = 'rotated_pole'
-        # Closing netCDF
+    # Closing netCDF
     f.close()
 
 nc_dcep.close()

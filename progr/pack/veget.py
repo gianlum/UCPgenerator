@@ -109,6 +109,7 @@ def lidar(veg_path, thr_val, data1, rlat_v, rlon_v, lat_s_1, lon_s_1, \
         print('greeing scenario active')
         LAD_C_tmp = np.ma.masked_where(LAD_C==0, LAD_C)
         LAD_C = LAD_C * (1 + 2.33 * np.exp(-1 * LAD_C_tmp/LAD_C_tmp.mean()))
+        LAD_C = np.ma.filled(LAD_C, 0)
 
     return LAD_C, OMEGA, LAI_URB
 
