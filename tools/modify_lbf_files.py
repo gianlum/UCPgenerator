@@ -34,11 +34,13 @@ for fic in files:
     lai_2.long_name = 'Leaf Area Index for urban vegetation'
     lai_2.coordinates = 'lon lat'
     lai_2.grid_mapping = 'rotated_pole'
+    lai_2.grid_mapping = -1e+20
     plcov_2.units = '1'
     plcov_2.standard_name = 'Plant Coverage 2'
     plcov_2.long_name = 'Plant coverage for urban vegetation'
     plcov_2.coordinates = 'lon lat'
     plcov_2.grid_mapping = 'rotated_pole'
+    plcov_2.grid_mapping = -1e+20
     # Closing netCDF
     f.close()
 
