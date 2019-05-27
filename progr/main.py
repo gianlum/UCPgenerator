@@ -21,10 +21,10 @@ import pack.tools as tools
 LAD_flag = 1 # calculate LAD
 threshold = 1 # for urban fraction
 thr_val = 0.4 
-greening = True # use greening scenario
+greening = False # use greening scenario
 
 # Height cluster
-new_approach = 0 # if 1, kees fr_roof 0 at the ground
+new_approach = 0 # if 1, kees fr_roof 0 at the ground (0 is default)
 norm_vert = True # normalize roof fraction over the vertical direction
 
 # Path to datasets
@@ -32,7 +32,6 @@ nc_path = '/project/mugi/nas/PAPER2/CCLM-DCEP-Tree/int2lm/laf2015062200.nc'
 sf_path = '/project/mugi/nas/PAPER2/datasets/buildings/geom/3dbuildings_masked_geom.shp'
 ufrac_path = '/project/mugi/nas/PAPER2/datasets/land_use/mosaic_20m_sealing_v2_WGS_cutted.tif'
 veg_path = '/project/mugi/nas/PAPER2/datasets/trees/VEG_WGS84.tif'
-
 
 ## CODE (MODIFICATIONS CAN PRODUCE ERRONEOUS RESULTS)
 
@@ -177,91 +176,78 @@ fr_roof.standard_name = 'Wall surfaces fraction'
 fr_roof.long_name = 'Fraction of wall surfaces per direction and height'
 fr_roof.coordinates = 'lon lat'
 fr_roof.grid_mapping = 'rotated_pole'
-fr_roof._FillValue = -1e+20
 
 fr_urbancl.units = '1'
 fr_urbancl.standard_name = 'Urban Mask'
 fr_urbancl.long_name = 'Mask for urban area'
 fr_urbancl.coordinates = 'lon lat'
 fr_urbancl.grid_mapping = 'rotated_pole'
-fr_urbancl._FillValue = -1e+20
 
 fr_urban.units = '1'
 fr_urban.standard_name = 'Urban Fraction'
 fr_urban.long_name = 'Fraction of urban horizontal surfaces'
 fr_urban.coordinates = 'lon lat'
 fr_urban.grid_mapping = 'rotated_pole'
-fr_urban._FillValue = -1e+20
 
 fr_streetd.units = '1'
 fr_streetd.standard_name = 'Canyon Direction Fraction'
 fr_streetd.long_name = 'Fraction of canyon directions'
 fr_streetd.coordinates = 'lon lat'
 fr_streetd.grid_mapping = 'rotated_pole'
-fr_streetd._FillValue = -1e+20
 
 street_w.units = 'm'
 street_w.standard_name = 'Street Width'
 street_w.long_name = 'Average street width per direction'
 street_w.coordinates = 'lon lat'
 street_w.grid_mapping = 'rotated_pole'
-street_w._FillValue = -1e+20
 
 build_w.units = 'm'
 build_w.standard_name = 'Building Width'
 build_w.long_name = 'Average building width per direction'
 build_w.coordinates = 'lon lat'
 build_w.grid_mapping = 'rotated_pole'
-build_w._FillValue = -1e+20
 
 lad_c.units = 'm2m-3'
 lad_c.standard_name = 'Canyon LAD'
 lad_c.long_name = 'Leaf Area Density in the Canyon'
 lad_c.coordinates = 'lon lat'
 lad_c.grid_mapping = 'rotated_pole'
-lad_c._FillValue = -1e+20
 
 lad_b.units = 'm2m-3'
 lad_b.standard_name = 'Building LAD'
 lad_b.long_name = 'Leaf Area Density in the Building Column'
 lad_b.coordinates = 'lon lat'
 lad_b.grid_mapping = 'rotated_pole'
-lad_b._FillValue = -1e+20
 
 omega_r.units = '1'
 omega_r.standard_name = 'Clumping rad.'
 omega_r.long_name = 'Neighborhood-scale clumping coeff. for rad. for tree foliage'
 omega_r.coordinates = 'lon lat'
 omega_r.grid_mapping = 'rotated_pole'
-omega_r._FillValue = -1e+20
 
 omega_d.units = '1'
 omega_d.standard_name = 'Clumping drag'
 omega_d.long_name = 'Neighborhood-scale clumping coeff. for drag for tree foliage'
 omega_d.coordinates = 'lon lat'
 omega_d.grid_mapping = 'rotated_pole'
-omega_d._FillValue = -1e+20
 
 lai_2.units = 'm2m-2'
 lai_2.standard_name = 'Leaf Area Index 2'
 lai_2.long_name = 'Leaf Area Index for urban vegetation'
 lai_2.coordinates = 'lon lat'
 lai_2.grid_mapping = 'rotated_pole'
-lai_2._FillValue = -1e+20
 
 plcov_2.units = '1'
 plcov_2.standard_name = 'Plant Coverage 2'
 plcov_2.long_name = 'Plant coverage for urban vegetation'
 plcov_2.coordinates = 'lon lat'
 plcov_2.grid_mapping = 'rotated_pole'
-plcov_2._FillValue = -1e+20
 
 z0_2.units = 'm'
 z0_2.standard_name = 'Roughness Length 2' 
 z0_2.long_name = 'Roughness Length for urban vegetation'
 z0_2.coordinates = 'lon lat'
 z0_2.grid_mapping = 'rotated_pole'
-z0_2._FillValue = -1e+20
 
 # Inserting data into variables
 fr_roof[:] = FR_ROOF
