@@ -17,6 +17,12 @@ import pack.tools as tools
 
 ## USER DEFINED PATHS AND PARAMETERS
 
+# Path to datasets
+nc_path = 'path_to_initial_COSMO_file'
+sf_path = 'path_to_building_geometries'
+ufrac_path = 'path_to_soil_sealing_dataset'
+veg_path = 'path_to_tree_dataset'
+
 #Flags
 LAD_flag = 1 # calculate LAD
 threshold = 1 # for urban fraction
@@ -24,14 +30,8 @@ thr_val = 0.4
 greening = False # use greening scenario
 
 # Height cluster
-new_approach = 0 # if 1, kees fr_roof 0 at the ground (0 is default)
+new_approach = 0 # if 1, keep fr_roof 0 at the ground (0 is default)
 norm_vert = True # normalize roof fraction over the vertical direction
-
-# Path to datasets
-nc_path = '/project/mugi/nas/PAPER2/CCLM-DCEP-Tree/int2lm/laf2015062200.nc'
-sf_path = '/project/mugi/nas/PAPER2/datasets/buildings/geom/3dbuildings_masked_geom.shp'
-ufrac_path = '/project/mugi/nas/PAPER2/datasets/land_use/mosaic_20m_sealing_v2_WGS_cutted.tif'
-veg_path = '/project/mugi/nas/PAPER2/datasets/trees/VEG_WGS84.tif'
 
 ## CODE (MODIFICATIONS CAN PRODUCE ERRONEOUS RESULTS)
 
