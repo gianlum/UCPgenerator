@@ -6,7 +6,7 @@ import numpy as np
 import gdal
 import copy
 
-import geo2rot
+from . import geo2rot
 
 def wgs(ufrac_path, threshold, thr_val, rlat_v, rlon_v, FR_URBAN):
     # Inizializations

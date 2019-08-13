@@ -5,9 +5,9 @@
 import numpy as np
 import shapefile
 
-import cluster
-import geometry
-import geo2rot
+from . import cluster
+from . import geometry
+from . import geo2rot
 
 def shp(sf_path, rlat_d, rlon_d, udir_d, uheight1_d, rlat_v, rlon_v, \
         FR_URBAN, FR_ROOF, norm_vert):
