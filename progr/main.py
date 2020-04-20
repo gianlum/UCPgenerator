@@ -18,10 +18,10 @@ import pack.tools as tools
 ## USER DEFINED PATHS AND PARAMETERS
 
 # Path to datasets
-nc_path = 'path_to_initial_COSMO_file'
-sf_path = 'path_to_building_geometries'
-ufrac_path = 'path_to_soil_sealing_dataset'
-veg_path = 'path_to_tree_dataset'
+nc_path = '/home/mussettg/Basel_data/laf2015062200.nc'
+sf_path = '/home/mussettg/Basel_data/datasets/buildings/geom/3dbuildings_masked_geom.shp'
+ufrac_path = '/home/mussettg/Basel_data/datasets/land_use/mosaic_20m_sealing_v2_WGS_cutted.tif'
+veg_path = '/home/mussettg/Basel_data/datasets/trees/VEG_WGS84.tif'
 
 #Flags
 LAD_flag = 1 # calculate LAD
