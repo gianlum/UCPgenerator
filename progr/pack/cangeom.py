@@ -5,9 +5,9 @@
 import numpy as np
 import shapefile
 
-import cluster
-import geometry
-import geo2rot
+from . import cluster
+from . import geometry
+from . import geo2rot
 
 def shp(sf_path, rlat_d, rlon_d, udir_d, uheight1_d, rlat_v, rlon_v, \
         FR_URBAN, FR_ROOF, norm_vert):
@@ -31,7 +31,7 @@ def shp(sf_path, rlat_d, rlon_d, udir_d, uheight1_d, rlat_v, rlon_v, \
         p = shape.points
         p = np.array(p)
         # Reading the Area (horizontal)
-        area = sf.record(x)[4]
+        area = sf.record(x)[19]
         # Calculating the coordinates of the centroid of the polygon
         lonC = np.mean(p[:,0])
         latC = np.mean(p[:,1])
@@ -43,7 +43,7 @@ def shp(sf_path, rlat_d, rlon_d, udir_d, uheight1_d, rlat_v, rlon_v, \
         # Allocating the total building area
         AREA_BLD[0,lat_idx,lon_idx]+=area
         # Clustering the geomerty heights
-        hgt = sf.record(x)[0]
+        hgt = sf.record(x)[15]
         MEAN_HEIGHT[0,lat_idx,lon_idx] += hgt * area
         hgt_class = cluster.height_old(hgt)
         # Looping over building segments (facades) 
@@ -59,7 +59,7 @@ def shp(sf_path, rlat_d, rlon_d, udir_d, uheight1_d, rlat_v, rlon_v, \
 
     # Calculating the area densities (Grimmond and Oke, 1998)
     np.seterr(divide='ignore') # disabled division by 0 warning
-    area_grid = 77970 # m2, calculated in GIS. TO DO: calculate from grid
+    area_grid = 197136 # m2, calculated in GIS. TO DO: calculate from grid
     lambda_p = AREA_BLD[0,:,:]/(area_grid*FR_URBAN[0,:,:])
     lambda_p[lambda_p>0.9] = 0.9 # upper limit
     lambda_p[lambda_p<0.1] = 0.1 # lower limit
@@ -70,7 +70,7 @@ def shp(sf_path, rlat_d, rlon_d, udir_d, uheight1_d, rlat_v, rlon_v, \
     LAMBDA_F[0,:,:,:] = lambda_f
     # Calculating the street and building widths (Martilli, 2009)
     h_m = MEAN_HEIGHT[0,:,:] / AREA_BLD[0,:,:]
-    h_m[h_m==15] = 10.
+    #h_m[h_m==15] = 10.
     BUILD_W[0,:,:,:] = lambda_p[np.newaxis,:,:] / lambda_f[:,:,:] * h_m
     STREET_W[0,:,:,:] = (1 / lambda_p[np.newaxis,:,:] - 1) * lambda_p[np.newaxis,:,:] \
                         / lambda_f * h_m

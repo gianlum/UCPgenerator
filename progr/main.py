@@ -18,14 +18,15 @@ import pack.tools as tools
 ## USER DEFINED PATHS AND PARAMETERS
 
 # Path to datasets
-nc_path = 'path_to_initial_COSMO_file'
-sf_path = 'path_to_building_geometries'
-ufrac_path = 'path_to_soil_sealing_dataset'
+fold_path = '/net/ch4/landclim/mussettg/Singapore/' 
+nc_path = fold_path + 'd3/int2lm/output/laf2016040100.nc'
+sf_path = fold_path + 'data/buildings/whole_sg_simpl_v3.shp'
+ufrac_path = fold_path + 'data/land_use/impervious_v4_WGS84.tif' 
 veg_path = 'path_to_tree_dataset'
 
 #Flags
-LAD_flag = 1 # calculate LAD
-threshold = 1 # for urban fraction
+LAD_flag = False # calculate LAD
+threshold = 0 # for urban fraction
 thr_val = 0.4 
 greening = False # use greening scenario
 
@@ -45,7 +46,7 @@ rlon_d = len(nc.dimensions['rlon'])
 rlat_d = len(nc.dimensions['rlat'])
 time_d = len(nc.dimensions['time'])
 udir_d = 4 
-uheight1_d = 13
+uheight1_d = 16
 uclass_d = 1
 
 # Importing variables
@@ -54,8 +55,8 @@ rlat_v = nc.variables['rlat'][:]
 lon_v = nc.variables['lon'][:]
 lat_v = nc.variables['lat'][:]
 udir_v = np.array([-45, 0, 45, 90], dtype=np.float32)
-#uheight1_v = np.array([0, 5, 10, 15, 20, 25, 30, 35, 40, 50, 60, 80, 100], dtype=np.float32)
-uheight1_v = np.array([0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60], dtype=np.float32)
+uheight1_v = np.array([0, 5, 10, 15, 20, 25, 30, 35, 40, 60, 80, 100, 140, 180, 250, 300], dtype=np.float32)
+#uheight1_v = np.array([0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60], dtype=np.float32)
 
 # Writing dimensions to the new netCDF
 udir = nc.createDimension('udir',udir_d)
@@ -99,7 +100,7 @@ print('Calculating canyon parameters')
         uheight1_d, rlat_v, rlon_v, FR_URBAN, FR_ROOF, norm_vert)
 
 # Calculating the leaf area density
-if LAD_flag==1:
+if LAD_flag==True:
     print('Calculating vegetation density')
     [LAD_C,OMEGA,LAI_URB] = veget.lidar(veg_path, thr_val, data1, rlat_v, rlon_v, lat_s_1, lon_s_1, LAD_C, OMEGA, LAI_URB, greening)
 
@@ -107,9 +108,9 @@ if LAD_flag==1:
 print('Masking the urban cells')
 # Defining the urban class mask
 FR_URBANCL = copy.deepcopy(FR_URBAN)
-FR_URBANCL[FR_URBANCL >= 0.11] = 1
-M[0, 2:-2, 2:-2] = 1 # Mask for the cells near the boundary
-FR_URBANCL = FR_URBANCL * M
+FR_URBANCL[FR_URBANCL >= 0.10] = 1
+#M[0, 2:-2, 2:-2] = 1 # Mask for the cells near the boundary
+#FR_URBANCL = FR_URBANCL * M
 FR_URBANCL[FR_URBANCL != 1] = 0
 #FR_URBANCL = np.ma.masked_invalid(FR_URBANCL)
 #FR_URBANCL.fill_value = -999
@@ -119,12 +120,8 @@ FR_ROOF_mask = copy.deepcopy(np.sum(FR_ROOF,(1,2)))
 FR_ROOF_mask[FR_ROOF_mask>0.01] = 1
 FR_URBANCL[FR_ROOF_mask != 1] = 0
 
-# Debug: removing grid cells with issues
-FR_URBANCL[0,107-1,151-1] = 0
-FR_URBANCL[0,120-1,179-1] = 0
-
 # Updating the mask with LAD values
-if LAD_flag==1:
+if LAD_flag==True:
     LAD_mask = copy.deepcopy(LAD_C[:,0,1,:,:])
     LAD_mask[LAD_mask>0.0001] = 1
     FR_URBANCL[LAD_mask != 1] = 0
@@ -144,11 +141,12 @@ LAD_B = tools.mask(LAD_B, mask4D)
 OMEGA = tools.mask(OMEGA, mask2D)
 
 # Creating the additional "_2" variables for DCEP
-PLCOV_2[FR_URBANCL == 1] = 0.8
-LAI_2[FR_URBANCL == 1] = 1 # to account for grass
-Z0_2[FR_URBANCL == 1] = 0.1
+# chosed taking an average conditions between rain forest and managed vegetation
+PLCOV_2[FR_URBANCL == 1] = 0.85
+LAI_2[FR_URBANCL == 1] = 4 
+Z0_2[FR_URBANCL == 1] = 0.7
 
-# Adding non-street treesa
+# Adding non-street trees
 LAI_URB[mask2D != 1] = 0 # only vegetation on urban cells
 LAI_2 = LAI_2 + LAI_URB
 

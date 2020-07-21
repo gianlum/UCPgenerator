@@ -6,7 +6,7 @@ import numpy as np
 import gdal
 import shapefile
 
-import geo2rot
+from . import geo2rot
 
 def lidar(veg_path, thr_val, data1, rlat_v, rlon_v, lat_s_1, lon_s_1, \
         LAD_C, OMEGA, LAI_URB, greening):

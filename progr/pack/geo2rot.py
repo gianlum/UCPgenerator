@@ -11,8 +11,8 @@
 import numpy as np
 
 # Constant related to the user projection (from the COSMO namelist)
-pollat = np.deg2rad(43.0)    # latitude of the rotated pole
-pollon = np.deg2rad(-170.0)  # longitude of the rotated pole
+pollat = np.deg2rad(90.0)    # latitude of the rotated pole
+pollon = np.deg2rad(102.5)  # longitude of the rotated pole
 
 def g2r(lon_g,lat_g):
     """ Geographical to Rotated coordinates. 

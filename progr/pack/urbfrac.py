@@ -6,7 +6,7 @@ import numpy as np
 import gdal
 import copy
 
-import geo2rot
+from . import geo2rot
 
 def wgs(ufrac_path, threshold, thr_val, rlat_v, rlon_v, FR_URBAN):
     # Inizializations
@@ -42,7 +42,7 @@ def wgs(ufrac_path, threshold, thr_val, rlat_v, rlon_v, FR_URBAN):
             lon_idx = np.abs(rlon_v - lonC).argmin()
             lat_idx = np.abs(rlat_v - latC).argmin()
             # Calculate urban fraction contribution
-            data1_tmp = data1_tmp / 100.
+            data1_tmp = data1_tmp / 1.
             FR_URBAN_count[0,lat_idx,lon_idx] += 1.
             if threshold == 1:
                 if data1_tmp >= thr_val:
