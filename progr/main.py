@@ -19,7 +19,7 @@ import pack.tools as tools
 
 # Path to datasets
 fold_path = '/net/ch4/landclim/mussettg/Singapore/' 
-nc_path = fold_path + 'd3/int2lm/output/laf2016040100.nc'
+nc_path = fold_path + 'data/laf/laf2016040100.nc'
 sf_path = fold_path + 'data/buildings/whole_sg_simpl_v3.shp'
 ufrac_path = fold_path + 'data/land_use/impervious_v4_WGS84.tif' 
 veg_path = 'path_to_tree_dataset'

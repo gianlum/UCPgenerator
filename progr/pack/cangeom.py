@@ -49,6 +49,7 @@ def shp(sf_path, rlat_d, rlon_d, udir_d, uheight1_d, rlat_v, rlon_v, \
         # Looping over building segments (facades) 
         for k in range (1, len(p)): 
             vert_area = geometry.distWGS(p,k) * hgt
+            print('vert_area = ' + str(vert_area)) 
             ang = geometry.angle(p,k)
             ang_class = cluster.angle(ang)
             # 
@@ -59,7 +60,7 @@ def shp(sf_path, rlat_d, rlon_d, udir_d, uheight1_d, rlat_v, rlon_v, \
 
     # Calculating the area densities (Grimmond and Oke, 1998)
     np.seterr(divide='ignore') # disabled division by 0 warning
-    area_grid = 197136 # m2, calculated in GIS. TO DO: calculate from grid
+    area_grid = 444. * 444. # m2, TO DO: calculate from grid
     lambda_p = AREA_BLD[0,:,:]/(area_grid*FR_URBAN[0,:,:])
     lambda_p[lambda_p>0.9] = 0.9 # upper limit
     lambda_p[lambda_p<0.1] = 0.1 # lower limit
@@ -74,8 +75,12 @@ def shp(sf_path, rlat_d, rlon_d, udir_d, uheight1_d, rlat_v, rlon_v, \
     BUILD_W[0,:,:,:] = lambda_p[np.newaxis,:,:] / lambda_f[:,:,:] * h_m
     STREET_W[0,:,:,:] = (1 / lambda_p[np.newaxis,:,:] - 1) * lambda_p[np.newaxis,:,:] \
                         / lambda_f * h_m
-    #STREET_W[STREET_W<5] = 5  # min aspect ration LCZ 2
-    #STREET_W[STREET_W>100] = 100  # max aspect ration LCZ 9
+    # Setting physical limits
+    STREET_W[STREET_W<5] = 5  # min aspect ratio LCZ 2
+    #STREET_W[STREET_W>100] = 100  # max aspect ratio LCZ 9
+    BUILD_W = STREET_W / (1 / LAMBDA_P - 1) # conserve the build/street ratio
+    #BUILD_W[BUILD_W<5] = 5  # min building width
+    #BUILD_W[BUILD_W>100] = 100  # max building width
    
     # Calculating and normalizing the canyon direction distribution
     FR_STREETD = np.sum(FR_ROOF,2)
